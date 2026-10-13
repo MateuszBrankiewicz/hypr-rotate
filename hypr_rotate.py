@@ -120,6 +120,15 @@ def set_monitor_transform(target_transform: int) -> bool:
         f'}})'
     )
 
+    # 1. Prevent hyprmoncfgd daemon from reverting rotated displays
+    try:
+        if target_transform != 0:
+            subprocess.run(["systemctl", "--user", "stop", "hyprmoncfgd.service"], capture_output=True, timeout=2.0)
+        elif not is_tablet_mode():
+            subprocess.run(["systemctl", "--user", "start", "hyprmoncfgd.service"], capture_output=True, timeout=2.0)
+    except Exception:
+        pass
+
     try:
         res = subprocess.run(
             ["hyprctl", "eval", lua_cmd],
@@ -131,6 +140,22 @@ def set_monitor_transform(target_transform: int) -> bool:
             state = load_state()
             state["transform"] = target_transform
             save_state(state)
+
+            # Also update hyprmoncfg-monitors.lua if present to prevent reload regressions
+            hyprmon_lua = Path.home() / ".config/hypr/hyprmoncfg-monitors.lua"
+            if hyprmon_lua.exists():
+                try:
+                    content = hyprmon_lua.read_text()
+                    import re
+                    # Add or update transform in Samsung Display block
+                    if "transform = " in content:
+                        new_content = re.sub(r'transform = \d', f'transform = {target_transform}', content)
+                    else:
+                        new_content = content.replace('scale = 2,', f'scale = 2,\n  transform = {target_transform},')
+                    hyprmon_lua.write_text(new_content)
+                except Exception:
+                    pass
+
             return True
         else:
             sys.stderr.write(f"hyprctl eval failed: {res.stderr or res.stdout}\n")
