@@ -109,7 +109,7 @@ def set_monitor_transform(target_transform: int) -> bool:
     mode_str = f"{width}x{height}@{rr:.2f}"
     pos_str = f"{x}x{y}"
 
-    # Use output name directly
+    # Use output name directly, rotating display, touchscreen, and stylus synchronously
     lua_cmd = (
         f'hl.monitor({{ '
         f'output = "{name}", '
@@ -117,6 +117,12 @@ def set_monitor_transform(target_transform: int) -> bool:
         f'position = "{pos_str}", '
         f'scale = {scale}, '
         f'transform = {target_transform} '
+        f'}}); '
+        f'hl.config({{ '
+        f'input = {{ '
+        f'touchdevice = {{ transform = {target_transform}, output = "{name}" }}, '
+        f'tablet = {{ transform = {target_transform}, output = "{name}" }} '
+        f'}} '
         f'}})'
     )
 
